@@ -51,7 +51,10 @@ public class TransferHandler implements IHandler {
                 }
             }
             headerBuf.flip();
-            size +=channelOut.write(headerBuf);
+            size += headerBuf.remaining();
+            while(headerBuf.hasRemaining()) {
+                channelOut.write(headerBuf);
+            }
             System.out.println("Transferred byte(s) " + count);
             String header = PIOUtils.redString(headerBuf,0,UTF8);
             System.out.println("header::"+header);
@@ -67,7 +70,10 @@ public class TransferHandler implements IHandler {
                     }
                 }
                 lengthBuf.flip();
-                size += channelOut.write(lengthBuf);
+                size += lengthBuf.remaining();
+                while(lengthBuf.hasRemaining()) {
+                    channelOut.write(lengthBuf);
+                }
                 System.out.println("Transferred byte(s) " + count);
                 int length = PIOUtils.redInteger4(lengthBuf, 0);                
                 System.out.println("length::"+length);
@@ -80,25 +86,28 @@ public class TransferHandler implements IHandler {
                         cancelKey(selectionKey);
                         return;
                     }
-                }         
+                }  
+                msgBuf.flip();
+                size += msgBuf.remaining();
+                while(msgBuf.hasRemaining()) {
+                    channelOut.write(msgBuf);
+                }
+                System.out.println("Transferred byte(s) " + count);
+                System.out.println("msg::"+PIOUtils.redString(msgBuf, 0,msgBuf.limit(), UTF8));
             }else{
-            	msgBuf = ByteBuffer.allocate(1024);
-            	count = channelIn.read(msgBuf);
-            	if (count == -1) {
+            	msgBuf = ByteBuffer.allocate(10*1024);
+            	while((count = channelIn.read(msgBuf)) > 0) {
+            		msgBuf.flip();
+                    size += msgBuf.remaining();
+                    while(msgBuf.hasRemaining()) {
+                        channelOut.write(msgBuf);
+                    }
+                }
+                if (count == -1) {
                     // EOF
                     cancelKey(selectionKey);
-                    return;
                 }
             }
-            msgBuf.flip();
-            size += channelOut.write(msgBuf);
-            System.out.println("Transferred byte(s) " + count);
-            System.out.println("msg::"+PIOUtils.redString(msgBuf, 0,msgBuf.limit(), UTF8));
-            if (count == -1) {
-                // EOF
-                cancelKey(selectionKey);
-            }
-
         } catch (IOException e) {
             e.printStackTrace();
             cancelKey(selectionKey);

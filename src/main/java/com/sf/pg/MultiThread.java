@@ -8,7 +8,7 @@ import java.sql.Statement;
 import java.util.Random;
 
 class MultiThread implements Runnable{
-	// Á¬½Ó×Ö·û´®£¬¸ñÊ½£º "jdbc:Êý¾Ý¿âÇý¶¯Ãû³Æ://Êý¾Ý¿â·þÎñÆ÷ip/Êý¾Ý¿âÃû³Æ"  
+	// ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ "jdbc:ï¿½ï¿½ï¿½Ý¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½://ï¿½ï¿½ï¿½Ý¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ip/ï¿½ï¿½ï¿½Ý¿ï¿½ï¿½ï¿½ï¿½ï¿½"  
 	public static final String URL241 = "jdbc:postgresql://192.168.56.241:5432/postgres";  
 	public static final String URL242 = "jdbc:postgresql://192.168.56.242:20004/postgres";  
 	public static final String URL243 = "jdbc:postgresql://192.168.56.243:20005/postgres";
@@ -119,26 +119,18 @@ class MultiThread implements Runnable{
 						start = System.currentTimeMillis();
 						insert(PROXY,USERNAME,PASSWORD);
 						end = System.currentTimeMillis();
-						System.out.println("insert time : "+(end-start));
+						System.out.println(Thread.currentThread()+" insert time : "+(end-start));
+
+						start = System.currentTimeMillis();
+						selectMaxId(PROXY,USERNAME,PASSWORD);
+						end = System.currentTimeMillis();
+						System.out.println(Thread.currentThread()+" selectMaxId time : "+(end-start));
+						
 					}catch(Exception e){
 						e.printStackTrace();
 					}
 				}
 			}).start();;	
 		}
-			
-		
-
-//		for (int i = 1; i <= 10; i++) {
-//			for (int j = 1; j <= 40; j++) {
-//				new Thread(new MultiThread("Ïß³Ì"+j)).start();
-//			}
-//			try {
-//				Thread.sleep(1000);
-//			} catch (InterruptedException e) {
-//				e.printStackTrace();
-//			}
-//		}
-
 	}
 }
