@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * User: chervanev
  * Date: 17.01.13
  * Time: 16:39
- * Класс обработчик очереди SelectionKey через IHandler
+ * 袣谢邪褋�? 芯斜褉邪斜芯褌褔懈泻 芯褔械褉械写�? SelectionKey 褔械褉械�? IHandler
  */
 public class Worker implements Runnable{
     final Selector selector;
@@ -28,8 +28,9 @@ public class Worker implements Runnable{
         while(!Thread.currentThread().isInterrupted()) {
             try {
                 SelectionKey key;
-                // акцептор может с приоритетом блокировать селектор
-                
+                // 邪泻褑械锌褌芯褉 屑芯卸械�? �? 锌褉懈芯褉懈褌械褌芯�? 斜谢芯泻懈褉芯胁邪褌�? 褋械谢械泻褌芯褉
+//                selectorGuard.lock();
+//                selectorGuard.unlock();
 
                 synchronized (selector)
                 {
@@ -51,6 +52,7 @@ public class Worker implements Runnable{
                         handler.perform(key);
                     }
                 }
+
 
             } catch (IOException e) {
                 // nothing
