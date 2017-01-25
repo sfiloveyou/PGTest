@@ -15,6 +15,7 @@ class MultiThread implements Runnable{
 	public static final String URL244 = "jdbc:postgresql://192.168.56.244:20004/postgres";
 	public static final String URL245 = "jdbc:postgresql://192.168.56.245:20005/postgres";
 	public static final String URL246 = "jdbc:postgresql://192.168.56.246:5432/postgres";
+	public static final String PROXY = "jdbc:postgresql://127.0.0.1:54320/postgres";
 	public static final String[] URLARRAY= {URL242,URL243,URL244,URL245};
 	public static final String USERNAME = "postgres";  
 	public static final String USERNAME_XC = "pgxc";  
@@ -108,11 +109,26 @@ class MultiThread implements Runnable{
 	}
 	
 	public static void main(String[] args) {
-		long start,end = 0;
-		start = System.currentTimeMillis();
-		insert(URL241,USERNAME,PASSWORD);
-		end = System.currentTimeMillis();
-		System.out.println("insert time : "+(end-start));
+		
+		for (int i = 0; i < 5; i++) {
+			new Thread(new Runnable(){
+				public void run() {
+					System.out.println(Thread.currentThread());
+					try{
+						long start,end = 0;
+						start = System.currentTimeMillis();
+						insert(PROXY,USERNAME,PASSWORD);
+						end = System.currentTimeMillis();
+						System.out.println("insert time : "+(end-start));
+					}catch(Exception e){
+						e.printStackTrace();
+					}
+				}
+			}).start();;	
+		}
+			
+		
+
 //		for (int i = 1; i <= 10; i++) {
 //			for (int j = 1; j <= 40; j++) {
 //				new Thread(new MultiThread("Ïß³Ì"+j)).start();
