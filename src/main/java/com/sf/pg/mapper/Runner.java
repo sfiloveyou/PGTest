@@ -19,11 +19,10 @@ public class Runner {
     public Runner() {
         try {
             mapper = new Acceptor(10);
-            if (!loadMappings("proxy.properties")) {
-                System.out.println("Unable to load properties, default settings used");
-                //mapper.addMapping(54320, "192.168.56.241", 5432 );
-                //mapper.addMapping(8888, "www.mail.ru", 80 );
-            }
+//            if (!loadMappings("proxy.properties")) {
+//                System.out.println("Unable to load properties, default settings used");
+//            }
+            mapper.addMapping(54320, "192.168.56.241", 5432 );
         } catch (IOException e) {
             // unable to start, shutdown
             e.printStackTrace();
