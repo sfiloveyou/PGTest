@@ -4,23 +4,19 @@ import io.mycat.backend.postgresql.utils.PIOUtils;
 import io.mycat.backend.postgresql.utils.PacketUtils;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.Random;
 
 public class PGProxyServer {
 	
+	private static final Random RANDOM = new Random();
 	public final static Charset UTF8 = Charset.forName("utf-8");
 	public final static int HEADER_LENGTH = 1;
 	public final static int MSG_LENGTH = 4;
@@ -35,92 +31,28 @@ public class PGProxyServer {
 	
 	public final static String SERVER = "127.0.0.1";
 	public final static int SERVER_PORT = 54320;
-	private final static List<MyChannel> channelList = new ArrayList<MyChannel>();
-	private final static Map<SocketChannel,SocketChannel> channelMap = new HashMap<SocketChannel,SocketChannel>();
 	private static Selector selector;
-	private static Selector readSelector;
 	
 	public  static void main(String[] args) {
-		try {
+		try{
+			ServerSocketChannel serverChannel = ServerSocketChannel.open();
+			serverChannel.configureBlocking(false);
+			serverChannel.socket().bind(new InetSocketAddress(SERVER_PORT));
 			selector = Selector.open();
-			readSelector = Selector.open();
-		} catch (IOException e) {
+			serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+			System.out.println("server started");
+			while (true) {
+				selector.select(20);
+				Iterator<?> iterator = selector.selectedKeys().iterator();
+				while (iterator.hasNext()) {
+					SelectionKey key = (SelectionKey) iterator.next();
+					iterator.remove();
+					serverHandler(key);
+				}
+			}
+		}catch(IOException e){
 			e.printStackTrace();
 		}
-		new Thread(new Runnable(){
-			public void run() {
-				try{
-					ServerSocketChannel serverChannel = ServerSocketChannel.open();
-					serverChannel.configureBlocking(false);
-					serverChannel.socket().bind(new InetSocketAddress(SERVER_PORT));
-					serverChannel.register(selector, SelectionKey.OP_ACCEPT);
-					System.out.println("server started");
-					while (true) {
-						selector.select(20);
-						Iterator<?> iterator = selector.selectedKeys().iterator();
-						while (iterator.hasNext()) {
-							SelectionKey key = (SelectionKey) iterator.next();
-							iterator.remove();
-							serverHandler(key);
-						}
-					}
-				}catch(IOException e){
-					e.printStackTrace();
-				}
-			}
-		}).start();
-		
-		//for (int i = 1; i < PROXY_HOST.length; i++) {
-			String client = PROXY_HOST[1];
-			new Thread(new Runnable(){
-				public void run() {
-					try{
-						SocketChannel socketChannel = SocketChannel.open();  
-			            socketChannel.configureBlocking(false);
-			            socketChannel.connect(new InetSocketAddress(client,PROXY_PORT));
-			            socketChannel.register(readSelector, SelectionKey.OP_CONNECT);
-			            MyChannel mychannel = new MyChannel();
-			            mychannel.setClient(client);
-			            mychannel.setSocketChannel(socketChannel);
-			            mychannel.setAuthed(false);
-			            channelList.add(mychannel);
-			            while (true) {
-			            	readSelector.select(20);
-							Iterator<?> iterator = readSelector.selectedKeys().iterator();
-							while (iterator.hasNext()) {
-								SelectionKey key = (SelectionKey) iterator.next();
-								iterator.remove();
-								clientHandler(key,mychannel);
-							}
-						}
-					}catch(IOException e){
-						e.printStackTrace();
-					}
-				}
-			}).start();
-		//}
-		new Thread(new Runnable(){
-			public void run() {
-				while (true) {
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e1) {
-						e1.printStackTrace();
-					}
-					for (MyChannel myChannel : channelList) {
-						if(myChannel.isAuthed()){
-							try {
-								heartbeat(myChannel);
-							} catch (UnsupportedEncodingException e) {
-								e.printStackTrace();
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
-						}
-					}
-				}
-			}
-		}).start();
 	}
     protected static void serverHandler(SelectionKey key) throws IOException {
     	if (key.isAcceptable()) {
@@ -129,16 +61,21 @@ public class PGProxyServer {
     		channel.configureBlocking(false);
     		channel.register(selector, SelectionKey.OP_READ);
     		System.out.println("server channel connected");
-    		
+			String client = PROXY_HOST[RANDOM.nextInt(PROXY_HOST.length)];
     		SocketChannel clientChannel = SocketChannel.open();  
     		clientChannel.configureBlocking(false);
-    		clientChannel.connect(new InetSocketAddress(PROXY_HOST[0], PROXY_PORT));
-    		channel.register(selector, SelectionKey.OP_READ,clientChannel);
-    		clientChannel.register(selector, SelectionKey.OP_READ,channel);
-    		System.out.println("client channel connected");
+    		clientChannel.connect(new InetSocketAddress(client, PROXY_PORT));
+            channel.register(selector, SelectionKey.OP_READ,clientChannel);
+            clientChannel.register(selector, SelectionKey.OP_READ,channel);
+    		System.out.println(client+" channel connected");
+        }else if (key.isConnectable()) {
+        	SocketChannel in = (SocketChannel) key.channel();
+    		in.finishConnect();
+    		key.interestOps(SelectionKey.OP_READ);
+        	authClient(in);
         }else if (key.isValid() && key.isReadable()) {
         	SocketChannel in = (SocketChannel) key.channel();
-            SocketChannel out = (SocketChannel) key.attachment();
+        	SocketChannel out = (SocketChannel) key.attachment();
             try {
                 ByteBuffer headerBuf = ByteBuffer.allocate(HEADER_LENGTH);
                 read(key, headerBuf, in);
@@ -151,7 +88,6 @@ public class PGProxyServer {
                 	msgBuf = ByteBuffer.allocate(length-MSG_DETAIL_LENGTH_EXCLUDE);
                 	read(key, msgBuf, in);
                 	writeAll(headerBuf, lengthBuf, msgBuf, out);
-                	//out = channelList.get(0).getSocketChannel();
                 }else{
                 	msgBuf = ByteBuffer.allocate(10*1024);
                 	readAll(key, msgBuf, in);
@@ -166,43 +102,6 @@ public class PGProxyServer {
         }
 	}
     
-    protected static void clientHandler(SelectionKey key, MyChannel myChannel) throws IOException {
-		SocketChannel in = (SocketChannel) key.channel();
-    	if (key.isConnectable()) {
-    		in.finishConnect();
-    		key.interestOps(SelectionKey.OP_READ);
-            //if(!PROXY_HOST[0].equals(client)){
-            	authClient(in);
-            	System.out.println("authClient "+myChannel.getClient());
-            //}
-            myChannel.setAuthed(true);
-        }else if (key.isValid() && key.isReadable()) {
-        	ByteBuffer headerBuf = ByteBuffer.allocate(HEADER_LENGTH);
-            read(key, headerBuf, in);
-            String header = PIOUtils.redString(headerBuf,0,UTF8);
-            ByteBuffer msgBuf = null;
-            ByteBuffer lengthBuf = ByteBuffer.allocate(MSG_LENGTH);
-            if(header!=null && "Q".equals(header.trim())){
-            	read(key, lengthBuf, in);
-                int length = PIOUtils.redInteger4(lengthBuf, 0);                
-            	msgBuf = ByteBuffer.allocate(length-MSG_DETAIL_LENGTH_EXCLUDE);
-            	read(key, msgBuf, in);
-            }else{
-            	msgBuf = ByteBuffer.allocate(10*1024);
-            	readAll(key, msgBuf, in);
-            }
-            printAll(headerBuf, lengthBuf, msgBuf);
-        }
-	}
-	private static void printAll(ByteBuffer headerBuf,ByteBuffer lengthBuf, ByteBuffer msgBuf) throws IOException {
-		ByteBuffer dsc = ByteBuffer.allocate(msgBuf.limit()+MSG_DETAIL_LENGTH_EXCLUDE);
-		putToBuffer(headerBuf, dsc);
-		putToBuffer(lengthBuf, dsc);
-		putToBuffer(msgBuf, dsc);
-		dsc.flip();
-		//System.out.println("msg::"+PIOUtils.redString(dsc, 0,dsc.limit(), UTF8));
-	}
-    
     private static void authClient(SocketChannel sc) throws IOException {
 		ByteBuffer buf = PacketUtils.makeStartUpPacket(PROXY_USER, PROXY_DB);
 		buf.flip();
@@ -212,20 +111,6 @@ public class PGProxyServer {
 		}
 	}
     
-	private static void heartbeat(MyChannel myChannel)
-			throws UnsupportedEncodingException, IOException {
-		ByteBuffer b = ByteBuffer.allocate(60);
-		b.put("Q".getBytes());
-		b.put(new byte[]{0,0,0,14});
-		b.put("select 1;".getBytes("UTF-8"));
-		b.put(new byte[]{0});
-		b.flip();
-		while(b.hasRemaining()) {
-			myChannel.getSocketChannel().write(b);
-		}
-		System.out.println("select 1 to "+myChannel.getClient());
-	}
-
     private static void read(SelectionKey key,ByteBuffer buffer,SocketChannel in)
 			throws IOException {
 		int count;
@@ -246,14 +131,6 @@ public class PGProxyServer {
         if (count == -1) {
         	cancelKey(key);
         }
-	}
-	
-	private static void write(ByteBuffer buffer,SocketChannel out)
-			throws IOException {
-		buffer.flip();
-		while(buffer.hasRemaining()) {
-			out.write(buffer);
-		}
 	}
 	
 	private static void writeAll(ByteBuffer headerBuf, ByteBuffer lengthBuf,
@@ -282,35 +159,10 @@ public class PGProxyServer {
 	
 	private static void cancelKey(SelectionKey key) {
         key.cancel();
-        SocketChannel mappedChannel = (SocketChannel) key.attachment();
-        SelectionKey mappedKey = mappedChannel.keyFor(key.selector());
+        SocketChannel out = (SocketChannel) key.attachment();
+    	SelectionKey mappedKey = out.keyFor(key.selector());
         if (mappedKey != null) {
             mappedKey.cancel();
         }
     }
-}
-
-class MyChannel{
-	private SocketChannel socketChannel;
-	private String client;
-	private boolean isAuthed;
-	public SocketChannel getSocketChannel() {
-		return socketChannel;
-	}
-	public void setSocketChannel(SocketChannel socketChannel) {
-		this.socketChannel = socketChannel;
-	}
-	public boolean isAuthed() {
-		return isAuthed;
-	}
-	public void setAuthed(boolean isAuthed) {
-		this.isAuthed = isAuthed;
-	}
-	public String getClient() {
-		return client;
-	}
-	public void setClient(String client) {
-		this.client = client;
-	}
-	
 }
