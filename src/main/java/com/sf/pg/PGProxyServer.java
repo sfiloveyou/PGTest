@@ -60,19 +60,14 @@ public class PGProxyServer {
     		SocketChannel channel = server.accept();
     		channel.configureBlocking(false);
     		channel.register(selector, SelectionKey.OP_READ);
-    		System.out.println("server channel connected");
-			String client = PROXY_HOST[RANDOM.nextInt(PROXY_HOST.length)];
-    		SocketChannel clientChannel = SocketChannel.open();  
-    		clientChannel.configureBlocking(false);
-    		clientChannel.connect(new InetSocketAddress(client, PROXY_PORT));
-            channel.register(selector, SelectionKey.OP_READ,clientChannel);
-            clientChannel.register(selector, SelectionKey.OP_READ,channel);
-    		System.out.println(client+" channel connected");
+    		//System.out.println("isAcceptable");
+			
         }else if (key.isConnectable()) {
         	SocketChannel in = (SocketChannel) key.channel();
     		in.finishConnect();
     		key.interestOps(SelectionKey.OP_READ);
         	authClient(in);
+        	//System.out.println("isConnectable");
         }else if (key.isValid() && key.isReadable()) {
         	SocketChannel in = (SocketChannel) key.channel();
         	SocketChannel out = (SocketChannel) key.attachment();
@@ -87,15 +82,31 @@ public class PGProxyServer {
                     int length = PIOUtils.redInteger4(lengthBuf, 0);                
                 	msgBuf = ByteBuffer.allocate(length-MSG_DETAIL_LENGTH_EXCLUDE);
                 	read(key, msgBuf, in);
+                	if(out==null){
+                		String client = PROXY_HOST[1];
+                		out = SocketChannel.open();  
+                		out.configureBlocking(false);
+                		out.connect(new InetSocketAddress(client, PROXY_PORT));
+                		in.register(selector, SelectionKey.OP_READ,out);
+                		out.register(selector, SelectionKey.OP_READ,in);
+                	}
                 	writeAll(headerBuf, lengthBuf, msgBuf, out);
                 }else{
                 	msgBuf = ByteBuffer.allocate(10*1024);
                 	readAll(key, msgBuf, in);
+                	if(out==null){
+                		String client = PROXY_HOST[0];
+                		out = SocketChannel.open();  
+                		out.configureBlocking(false);
+                		out.connect(new InetSocketAddress(client, PROXY_PORT));
+                		in.register(selector, SelectionKey.OP_READ,out);
+                		out.register(selector, SelectionKey.OP_READ,in);
+                	}
                 	writeAll(headerBuf, lengthBuf, msgBuf, out);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                cancelKey(key);;
+                cancelKey(key);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -146,6 +157,7 @@ public class PGProxyServer {
 		while(dsc.hasRemaining()) {
 			out.write(dsc);
 		}
+		//System.out.println(PIOUtils.redString(dsc, 0,dsc.limit(), UTF8));
 	}
 	
 	private static void putToBuffer(ByteBuffer src, ByteBuffer dsc) throws IOException {

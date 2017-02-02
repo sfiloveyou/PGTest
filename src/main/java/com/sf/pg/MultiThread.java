@@ -20,7 +20,7 @@ class MultiThread implements Runnable{
 	public static final String USERNAME = "postgres";  
 	public static final String USERNAME_XC = "pgxc";  
 	public static final String PASSWORD = "123456"; 
-	
+	private static final Random RANDOM = new Random();
 	private String name;
     public MultiThread(String name) {
 		try {
@@ -110,22 +110,22 @@ class MultiThread implements Runnable{
 	
 	public static void main(String[] args) {
 		
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 50; i++) {
 			new Thread(new Runnable(){
 				public void run() {
 					System.out.println(Thread.currentThread());
 					try{
 						long start,end = 0;
-						start = System.currentTimeMillis();
-						insert(PROXY,USERNAME,PASSWORD);
-						end = System.currentTimeMillis();
-						System.out.println(Thread.currentThread()+" insert time : "+(end-start));
+//						start = System.currentTimeMillis();
+//						insert(PROXY,USERNAME,PASSWORD);
+//						end = System.currentTimeMillis();
+//						System.out.println(Thread.currentThread()+" insert time : "+(end-start));
 
 						start = System.currentTimeMillis();
-						selectMaxId(PROXY,USERNAME,PASSWORD);
+						int count = selectMaxId(PROXY,USERNAME,PASSWORD);
+						Thread.sleep(RANDOM.nextInt(10)*100);
 						end = System.currentTimeMillis();
-						System.out.println(Thread.currentThread()+" selectMaxId time : "+(end-start));
-						
+						System.out.println(Thread.currentThread()+" selectMaxId time : "+(end-start)+" count "+count);
 					}catch(Exception e){
 						e.printStackTrace();
 					}
