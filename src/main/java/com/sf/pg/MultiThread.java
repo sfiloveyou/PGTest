@@ -108,29 +108,32 @@ class MultiThread implements Runnable{
 		}
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 		
-		for (int i = 0; i < 50; i++) {
-			new Thread(new Runnable(){
-				public void run() {
-					System.out.println(Thread.currentThread());
-					try{
-						long start,end = 0;
-//						start = System.currentTimeMillis();
-//						insert(PROXY,USERNAME,PASSWORD);
-//						end = System.currentTimeMillis();
-//						System.out.println(Thread.currentThread()+" insert time : "+(end-start));
-
-						start = System.currentTimeMillis();
-						int count = selectMaxId(PROXY,USERNAME,PASSWORD);
-						Thread.sleep(RANDOM.nextInt(10)*100);
-						end = System.currentTimeMillis();
-						System.out.println(Thread.currentThread()+" selectMaxId time : "+(end-start)+" count "+count);
-					}catch(Exception e){
-						e.printStackTrace();
+		for (int i = 0; i < 100; i++) {
+			Thread.sleep(1000);
+			for (int j = 0; j < 2; j++) {
+				new Thread(new Runnable(){
+					public void run() {
+						System.out.println(Thread.currentThread());
+						try{
+							long start,end = 0;
+							start = System.currentTimeMillis();
+							insert(PROXY,USERNAME,PASSWORD);
+							end = System.currentTimeMillis();
+							System.out.println(Thread.currentThread()+" insert time : "+(end-start));
+	
+							start = System.currentTimeMillis();
+							int count = selectMaxId(PROXY,USERNAME,PASSWORD);
+							//Thread.sleep(RANDOM.nextInt(10)*100);
+							end = System.currentTimeMillis();
+							System.out.println(Thread.currentThread()+" selectMaxId time : "+(end-start)+" count "+count);
+						}catch(Exception e){
+							e.printStackTrace();
+						}
 					}
-				}
-			}).start();;	
+				}).start();
+			}
 		}
 	}
 }
