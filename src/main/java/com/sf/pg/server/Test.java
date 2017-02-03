@@ -1,4 +1,4 @@
-package com.sf.pg;
+package com.sf.pg.server;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -7,8 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Random;
 
-class MultiThread implements Runnable{
-	// �����ַ�������ʽ�� "jdbc:���ݿ���������://���ݿ������ip/���ݿ�����"  
+class Test implements Runnable{
 	public static final String URL241 = "jdbc:postgresql://192.168.56.241:5432/postgres";  
 	public static final String URL242 = "jdbc:postgresql://192.168.56.242:20004/postgres";  
 	public static final String URL243 = "jdbc:postgresql://192.168.56.243:20005/postgres";
@@ -22,7 +21,7 @@ class MultiThread implements Runnable{
 	public static final String PASSWORD = "123456"; 
 	private static final Random RANDOM = new Random();
 	private String name;
-    public MultiThread(String name) {
+    public Test(String name) {
 		try {
 			Class.forName("org.postgresql.Driver").newInstance();
 		} catch (Exception e) {
@@ -110,18 +109,18 @@ class MultiThread implements Runnable{
 	
 	public static void main(String[] args) throws InterruptedException {
 		
-		for (int i = 0; i < 100; i++) {
-			Thread.sleep(1000);
-			for (int j = 0; j < 2; j++) {
+		for (int i = 0; i < 10; i++) {
+			Thread.sleep(2000);
+			for (int j = 0; j < 20; j++) {
 				new Thread(new Runnable(){
 					public void run() {
-						System.out.println(Thread.currentThread());
+						//System.out.println(Thread.currentThread());
 						try{
 							long start,end = 0;
-							start = System.currentTimeMillis();
-							insert(PROXY,USERNAME,PASSWORD);
-							end = System.currentTimeMillis();
-							System.out.println(Thread.currentThread()+" insert time : "+(end-start));
+//							start = System.currentTimeMillis();
+//							insert(PROXY,USERNAME,PASSWORD);
+//							end = System.currentTimeMillis();
+//							System.out.println(Thread.currentThread()+" insert time : "+(end-start));
 	
 							start = System.currentTimeMillis();
 							int count = selectMaxId(PROXY,USERNAME,PASSWORD);
