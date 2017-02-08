@@ -27,7 +27,6 @@ public class PGProxyServer3 {
 	public final static String SERVER = "127.0.0.1";
 	public final static int SERVER_PORT = 54320;
 	private static Selector selector;
-	private static Selector readSelector;
 	public  static void main(String[] args) {
 		new Thread(new Runnable(){
 			public void run() {
@@ -55,24 +54,6 @@ public class PGProxyServer3 {
 				}
 			}
 		}).start();
-		new Thread(new Runnable(){
-			public void run() {
-				try{
-					readSelector = Selector.open();
-		            while (true) {
-		            	readSelector.select(20);
-						Iterator<?> iterator = readSelector.selectedKeys().iterator();
-						while (iterator.hasNext()) {
-							SelectionKey key = (SelectionKey) iterator.next();
-							iterator.remove();
-							clientHandler(key);
-						}
-					}
-				}catch(IOException e){
-					e.printStackTrace();
-				}
-			}
-		}).start();
 	}
 	
 	protected static void serverHandler(SelectionKey key) throws IOException {
@@ -91,7 +72,7 @@ public class PGProxyServer3 {
             	if(out == null || !out.isConnected()){
             		String[] address = in.getRemoteAddress().toString().split(":");
             		int port = Integer.parseInt(address[address.length-1]);
-            		//System.out.println("port::"+port);
+            		System.out.println("port::"+port);
             		String client = null;
             		if((port%2)==0){
                     	client = PROXY_HOST[1];
@@ -101,7 +82,7 @@ public class PGProxyServer3 {
             		out = SocketChannel.open();  
                     out.configureBlocking(false);
                     out.connect(new InetSocketAddress(client,PROXY_PORT));
-                    out.register(readSelector, SelectionKey.OP_READ,in);
+                    out.register(selector, SelectionKey.OP_READ,in);
                     in.register(selector, SelectionKey.OP_READ,out);
                     while(!out.finishConnect()){
                     }
@@ -111,16 +92,6 @@ public class PGProxyServer3 {
                 e.printStackTrace();
                 cancelKey(key);
             } 
-        }
-	}
-	
-	protected static void clientHandler(SelectionKey key) throws IOException {
-    	if (key.isValid() && key.isReadable()) {
-    		SocketChannel in = (SocketChannel) key.channel();
-        	SocketChannel out = (SocketChannel) key.attachment();
-        	ByteBuffer buffer = ByteBuffer.allocate(BUFFER_ALLOC_SIZE);
-            read(key, buffer, in);
-            write(buffer, out);
         }
 	}
 	
