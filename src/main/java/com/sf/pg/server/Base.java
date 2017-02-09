@@ -36,7 +36,7 @@ public abstract class Base {
         if (count == -1) {
         	cancelKey(key);
         }
-        return count;
+        return buffer.limit();
 	}
 	
 	protected void write(ByteBuffer buffer,SocketChannel out)
@@ -50,11 +50,11 @@ public abstract class Base {
 	protected void cancelKey(SelectionKey key) throws IOException {
 		System.out.println("cancelKey");
         key.cancel();
-        SocketChannel out = (SocketChannel) key.attachment();
-    	SelectionKey mappedKey = out.keyFor(key.selector());
-        if (mappedKey != null) {
-            mappedKey.cancel();
-        }
+//        SocketChannel out = (SocketChannel) key.attachment();
+//    	SelectionKey mappedKey = out.keyFor(key.selector());
+//        if (mappedKey != null) {
+//            mappedKey.cancel();
+//        }
 //        SocketChannel in = (SocketChannel) key.channel();
 //        in.close();
     }

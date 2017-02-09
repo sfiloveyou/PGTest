@@ -22,7 +22,14 @@ public class Server extends Base{
 		System.out.println("server started");
 	}
 
-
+	protected ByteBuffer getBuffer(ByteBuffer src, int length)
+			throws IOException {
+		ByteBuffer out  = ByteBuffer.allocate(length);
+		for(int i=0 ;i< length;i++){
+			out.put(new byte[]{src.get()});
+		}
+		return out;
+	}
 	
 	void handler(SelectionKey key) throws IOException {
     	if (key.isAcceptable()) {
@@ -33,61 +40,65 @@ public class Server extends Base{
         }else if (key.isValid() && key.isReadable()) {
         	SocketChannel in = (SocketChannel) key.channel();
         	SocketChannel out = (SocketChannel) key.attachment();
+        	String ip = PROXY_HOST[0];
             try {
-            	ByteBuffer headerBuf = ByteBuffer.allocate(HEADER_LENGTH);
-            	read(key, headerBuf, in);
-            	headerBuf.flip();
-            	ByteBuffer lengthBuf = null;
-            	ByteBuffer msgBuf = null;
-            	ByteBuffer buffer = null;
-            	if(headerBuf.get(0)==0){
-            		lengthBuf = ByteBuffer.allocate(MSG_LENGTH-1);
-            		read(key, lengthBuf, in);
-            		lengthBuf.flip();
-            		ByteBuffer tmp = ByteBuffer.allocate(MSG_LENGTH);
-            		tmp.put(headerBuf);
-            		tmp.put(lengthBuf);
-            		
-            		int length = PIOUtils.redInteger4(tmp, 0);
-            		if(length>0){
-            			msgBuf = ByteBuffer.allocate(length-MSG_DETAIL_LENGTH_EXCLUDE+2);
-                		read(key, msgBuf, in);
-                		msgBuf.flip();
-	            		buffer = ByteBuffer.allocate(length);
-	            		tmp.flip();
-	            		buffer.put(tmp);
-	            		buffer.put(msgBuf);
-            		}else{
-            			buffer = ByteBuffer.allocate(headerBuf.limit()+lengthBuf.limit());
+            	
+            	ByteBuffer b = ByteBuffer.allocate(BUFFER_ALLOC_SIZE);
+            	read(key, b, in);
+            	b.flip();
+            	while(b.hasRemaining()){
+	            	ByteBuffer headerBuf = getBuffer(b,HEADER_LENGTH);
+	            	headerBuf.flip();
+	            	ByteBuffer lengthBuf = null;
+	            	ByteBuffer msgBuf = null;
+	            	ByteBuffer buffer = null;
+	            	if(headerBuf.get(0)==0){
+	            		lengthBuf = getBuffer(b,MSG_LENGTH-1);
+	            		lengthBuf.flip();
+	            		ByteBuffer tmp = ByteBuffer.allocate(MSG_LENGTH);
+	            		tmp.put(headerBuf);
+	            		tmp.put(lengthBuf);
+	            		
+	            		int length = PIOUtils.redInteger4(tmp, 0);
+	            		if(length>0){
+	            			msgBuf = getBuffer(b,length-MSG_DETAIL_LENGTH_EXCLUDE);
+	                		msgBuf.flip();
+		            		buffer = ByteBuffer.allocate(length);
+		            		tmp.flip();
+		            		buffer.put(tmp);
+		            		buffer.put(msgBuf);
+	            		}else{
+	            			buffer = ByteBuffer.allocate(headerBuf.limit()+lengthBuf.limit());
+		            		buffer.put(headerBuf);
+		            		buffer.put(lengthBuf);
+	            		}
+	            	}else{
+	            		lengthBuf = getBuffer(b,MSG_LENGTH);
+	            		lengthBuf.flip();
+	            		int length = PIOUtils.redInteger4(lengthBuf, 0);
+	            		if(length>0){
+	            			msgBuf = getBuffer(b,length-MSG_DETAIL_LENGTH_EXCLUDE);
+	                		msgBuf.flip();
+	            		}
+	            		
+	            		buffer = ByteBuffer.allocate(length+1);
 	            		buffer.put(headerBuf);
 	            		buffer.put(lengthBuf);
-            		}
-            	}else{
-            		lengthBuf = ByteBuffer.allocate(MSG_LENGTH);
-            		read(key, lengthBuf, in);
-            		lengthBuf.flip();
-            		int length = PIOUtils.redInteger4(lengthBuf, 0);
-            		if(length>0){
-            			msgBuf = ByteBuffer.allocate(length-MSG_DETAIL_LENGTH_EXCLUDE);
-                		read(key, msgBuf, in);
-                		msgBuf.flip();
-            		}
-            		
-            		buffer = ByteBuffer.allocate(length+1);
-            		buffer.put(headerBuf);
-            		buffer.put(lengthBuf);
-            		buffer.put(msgBuf);
+	            		buffer.put(msgBuf);
+	            		if(headerBuf.get(0)==81){
+	            			ip = "192.168.56.242";
+	            		}
+	            	}
+	            	if(out == null){
+		        		System.out.println("client.getDbChannel");
+		        		out = client.getDbChannel(ip,PROXY_PORT);
+		        		out.register(client.getSelector(), SelectionKey.OP_CONNECT|SelectionKey.OP_READ,in);
+		                in.register(selector, SelectionKey.OP_READ,out);
+		                while(out == null || !out.isConnected()){
+		        		}
+		        	}
+	                write(buffer, out);
             	}
-            	if(out == null){
-	        		System.out.println("client.getDbChannel");
-	        		out = client.getDbChannel(PROXY_HOST[0],PROXY_PORT);
-	        		out.register(client.getSelector(), SelectionKey.OP_CONNECT|SelectionKey.OP_READ,in);
-	                in.register(selector, SelectionKey.OP_READ,out);
-	                while(out == null || !out.isConnected()){
-	        		}
-	        	}
-            	//System.out.println(PIOUtils.redString(buffer, 0, buffer.limit(), UTF8));
-                write(buffer, out);
             } catch (Exception e) {
                 e.printStackTrace();
                 cancelKey(key);
