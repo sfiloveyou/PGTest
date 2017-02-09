@@ -32,6 +32,7 @@ public abstract class Base {
 		int count;
 		while((count = in.read(buffer)) > 0) {
         }
+		//buffer.flip();
         if (count == -1) {
         	cancelKey(key);
         }

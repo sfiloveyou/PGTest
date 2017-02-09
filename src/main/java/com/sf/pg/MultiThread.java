@@ -55,7 +55,7 @@ class MultiThread implements Runnable{
 			while (rs.next()) {
 				id=rs.getInt(1);
 	        }
-			for (int i = id+1; i <= id+1000; i++) {
+			for (int i = id+1; i <= id+10; i++) {
 				String sql = "INSERT INTO t_user (name) VALUES('cloud"+i+"')";
 				stmt.executeUpdate(sql);
 			}
@@ -110,9 +110,9 @@ class MultiThread implements Runnable{
 	
 	public static void main(String[] args) throws InterruptedException {
 		
-		for (int i = 0; i < 100; i++) {
-			Thread.sleep(1000);
-			for (int j = 0; j < 2; j++) {
+		for (int i = 0; i < 10; i++) {
+			Thread.sleep(5000);
+			for (int j = 0; j < 1; j++) {
 				new Thread(new Runnable(){
 					public void run() {
 						System.out.println(Thread.currentThread());
